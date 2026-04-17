@@ -28,7 +28,6 @@ interface Particle {
     vx: number;
     vy: number;
     radius: number;
-    domRef: React.RefObject<HTMLImageElement | null>;
 }
 
 const ICON_SIZE = 45;
@@ -96,9 +95,11 @@ const ICON_LINKS: string[] = [
 
 const App: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const requestRef = useRef<number>();
+    const requestRef = useRef<number>(null);
     const particlesRef = useRef<Particle[]>([]);
+    const imageRefs = useRef<Map<number, HTMLImageElement>>(new Map());
     const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+    const [renderParticles, setRenderParticles] = useState<Particle[]>([]);
 
     useEffect(() => {
         const updateSize = () => {
@@ -110,7 +111,7 @@ const App: React.FC = () => {
                     const cols = 7;
                     const gap = 35;
 
-                    particlesRef.current = ICON_SOURCES.map((src, i) => ({
+                    const newParticles = ICON_SOURCES.map((src, i) => ({
                         id: i,
                         src: src,
                         url: ICON_LINKS[i],
@@ -118,9 +119,11 @@ const App: React.FC = () => {
                         y: Math.floor(i / cols) * (ICON_SIZE + gap) + gap,
                         vx: (Math.random() - 0.5) * VELOCITY_LIMIT * 2,
                         vy: (Math.random() - 0.5) * VELOCITY_LIMIT * 2,
-                        radius: RADIUS,
-                        domRef: React.createRef<HTMLImageElement>()
+                        radius: RADIUS
                     }));
+                    
+                    particlesRef.current = newParticles;
+                    setRenderParticles(newParticles);
                 }
             }
         };
@@ -134,7 +137,7 @@ const App: React.FC = () => {
         const particles = particlesRef.current;
         const { width, height } = dimensions;
 
-        if (width === 0 || height === 0) {
+        if (width === 0 || height === 0 || particles.length === 0) {
             requestRef.current = requestAnimationFrame(animate);
             return;
         }
@@ -194,8 +197,9 @@ const App: React.FC = () => {
                 }
             }
 
-            if (p.domRef.current) {
-                p.domRef.current.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+            const imgEl = imageRefs.current.get(p.id);
+            if (imgEl) {
+                imgEl.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
             }
         }
 
@@ -236,10 +240,13 @@ const App: React.FC = () => {
                     }}
                 />
 
-                {particlesRef.current.map((p) => (
+                {renderParticles.map((p) => (
                     <img
                         key={p.id}
-                        ref={p.domRef as React.RefObject<HTMLImageElement>}
+                        ref={(el) => {
+                            if (el) imageRefs.current.set(p.id, el);
+                            else imageRefs.current.delete(p.id);
+                        }}
                         src={p.src}
                         alt={`Tech ${p.id}`}
                         onClick={() => window.open(p.url, "_blank")}
@@ -250,7 +257,8 @@ const App: React.FC = () => {
                             height: ICON_SIZE,
                             objectFit: 'contain',
                             willChange: 'transform',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            transform: `translate3d(${p.x}px, ${p.y}px, 0)`
                         }}
                     />
                 ))}
@@ -274,4 +282,4 @@ const App: React.FC = () => {
     );
 };
 
-export default App;
+export default App;
